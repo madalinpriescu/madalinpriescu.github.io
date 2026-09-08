@@ -1,1 +1,184 @@
-# madalinpriescu.github.io
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trasee — Căminul Renașterii 2</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; color: #111; background: #f4f4f2; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 4px 0 14px; }
+  .selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .selector button {
+    padding: 11px 12px; font-size: 14px; font-weight: 600; text-align: left;
+    border: 1.5px solid #111; background: #fff; color: #111; border-radius: 8px; cursor: pointer; transition: all 0.15s;
+  }
+  .selector button:hover { background: #f0f0ee; }
+  .selector button.activ { background: #111; color: #fff; cursor: default; }
+  #map { height: 460px; width: 100%; border: 1.5px solid #111; border-radius: 8px; background: #fff; }
+  .leaflet-tile-pane { filter: grayscale(1) contrast(0.7) brightness(1.2); }
+  .pin-label { display: inline-block; background: #111; color: #fff; padding: 2px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .panou { margin: 12px 0 4px; display: flex; flex-direction: column; gap: 8px; }
+  .distanta, .timpi { padding: 9px 13px; background: #fff; border: 1.5px solid #111; border-radius: 8px; font-size: 14px; }
+  .timpi .mod { display: inline-block; margin-right: 4px; }
+  .timpi .sep { color: #999; padding: 0 5px; }
+  .rute { margin-top: 16px; background: #fff; border: 1.5px solid #111; border-radius: 8px; padding: 16px 18px; }
+  .rute .antet { font-size: 13px; color: #555; margin-bottom: 12px; font-style: italic; }
+  .rute h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+  .ruta { margin-bottom: 14px; } .ruta:last-child { margin-bottom: 0; }
+  .ruta .eticheta { font-weight: 600; display: inline-block; margin-bottom: 3px; }
+  .ruta .pasi { font-size: 14px; line-height: 1.6; }
+  .ruta .total { font-size: 13px; color: #333; font-weight: 600; }
+  .sageata { color: #666; padding: 0 3px; }
+  .mijloc { background: #111; color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .nota { font-size: 13px; color: #555; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Trasee din Căminul Renașterii 2</h1>
+  <div class="selector" id="selector"></div>
+  <div id="map"></div>
+  <div class="panou">
+    <div class="distanta" id="distanta">Se calculează traseul pe străzi…</div>
+    <div class="timpi" id="timpi"></div>
+  </div>
+  <div class="rute" id="rute"></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const START = [45.76851, 21.25477];
+  const ANTET = "Pentru căminele situate în afara Complexului Studențesc, acestea sunt rutele de transport în comun:";
+  const DEST = {
+    uvt: { nume: "Universitatea de Vest", coord: [45.74712, 21.23162],
+      titlu: "Căminul Renașterii 2 → Universitatea de Vest din Timișoara", tcMin: 20,
+      rute: [
+        { et: "Ruta 1", pasi: ['pe jos la <b>Meteo</b>', '<span class="mijloc">5C</span> spre Ronaț', 'cobori la <b>J. H. Pestalozzi</b>', 'pe jos până la <b>Vasile Pârvan</b>'], total: "Total ~20 min" },
+        { et: "Ruta 2", pasi: ['la <b>Meteo</b>', '<span class="mijloc">5C</span> până la <b>J. H. Pestalozzi</b>', '<span class="mijloc">troleibuz 16</span> până la <b>Universitatea de Vest</b>'], total: "Total ~20 min" }
+      ] },
+    feaa: { nume: "FEAA — Pestalozzi 16", coord: [45.75380, 21.24491],
+      titlu: "Căminul Renașterii 2 → FEAA / FCBG (Strada Pestalozzi 16)", tcMin: 15,
+      rute: [
+        { et: "Ruta 1", pasi: ['la <b>Meteo</b>', '<span class="mijloc">5C</span> spre Ronaț', 'cobori la <b>J. H. Pestalozzi</b>', 'pe jos până la <b>Pestalozzi 16</b>'], total: "Total ~15 min" },
+        { et: "Ruta 2", pasi: ['la <b>Meteo</b>', '<span class="mijloc">5C</span> până la <b>Andrei Șaguna / Iepurelui</b>', 'transfer <span class="mijloc">E8</span> până la <b>Pasaj Michelangelo</b>', 'pe jos până la <b>Pestalozzi 16</b>'], total: "Total ~20 min" }
+      ] },
+    muzica: { nume: "Muzică și Teatru", coord: [45.75605, 21.22721],
+      titlu: "Căminul Renașterii 2 → Facultatea de Muzică și Teatru (Piața Libertății 1)", tcMin: 22,
+      rute: [
+        { et: "Ruta 1", pasi: ['pe jos la <b>Renașterii</b>', '<span class="mijloc">tramvai 11</span> spre Gheorghe Barițiu', 'cobori la <b>Spitalul Municipal (Parcul Botanic)</b>', 'pe jos până la <b>Facultatea de Muzică și Teatru</b>'], total: "Total ~22 min" },
+        { et: "Ruta 2", pasi: ['pe jos la <b>Poliția Locală</b>', '<span class="mijloc">5C</span> spre Ronaț', 'cobori la <b>Piața Libertății</b>', 'pe jos până la <b>Facultatea de Muzică și Teatru</b>'], total: "Total ~28 min" }
+      ] },
+    arte: { nume: "Arte și Design", coord: [45.75962, 21.22928],
+      titlu: "Căminul Renașterii 2 → Facultatea de Arte și Design (Strada Oituz 4)", tcMin: 17,
+      rute: [
+        { et: "Ruta 1", pasi: ['pe jos la <b>Renașterii</b>', '<span class="mijloc">tramvai 11</span> spre Gheorghe Barițiu', 'cobori la <b>Oituz (Punctele cardinale)</b>', 'pe jos până la <b>Facultatea de Arte și Design</b>'], total: "Total ~17 min" },
+        { et: "Ruta 2", pasi: ['pe jos la <b>Renașterii</b>', '<span class="mijloc">M35</span> spre Timișoara (Bastion)', 'cobori la <b>Bastion (Piața Ionel I. C. Brătianu)</b>', 'pe jos până la <b>Facultatea de Arte și Design</b>'], total: "Total ~20 min" }
+      ] },
+    drept: { nume: "Drept", coord: [45.74688, 21.23869],
+      titlu: "Căminul Renașterii 2 → Facultatea de Drept (Bd. Eroilor de la Tisa 9A)", tcMin: 35,
+      rute: [
+        { et: "Ruta 1", pasi: ['pe jos la <b>Iosif Vulcan</b>', '<span class="mijloc">21</span> spre T. Grozăvescu', 'cobori la <b>Corneliu Coposu</b>', 'pe jos până la <b>Facultatea de Drept</b>'], total: "Total ~35 min" },
+        { et: "Ruta 2", pasi: ['pe jos la <b>Poliția Locală</b>', '<span class="mijloc">5C</span> spre Ronaț', 'cobori la <b>Liceul J. L. Calderon</b>', 'pe jos până la <b>Facultatea de Drept</b>'], total: "Total ~35 min" }
+      ] },
+    psiho: { nume: "Psihologie — Str. Paris", coord: [45.75394, 21.22324],
+      titlu: "Căminul Renașterii 2 → Facultatea de Psihologie (Strada Paris 1)", tcMin: 23,
+      rute: [
+        { et: "Ruta 1", pasi: ['pe jos la <b>Renașterii</b>', '<span class="mijloc">tramvai 11 / M11</span> spre Gheorghe Barițiu', 'cobori la <b>Piața Timișoara 700</b>', 'pe jos până la <b>Facultatea de Psihologie</b>'], total: "Total ~23 min" }
+      ] }
+  };
+  const ETICHETE = {
+    uvt: "→ Universitatea de Vest (Vasile Pârvan)", feaa: "→ FEAA / FCBG (Pestalozzi 16)",
+    muzica: "→ Muzică și Teatru", arte: "→ Arte și Design", drept: "→ Drept", psiho: "→ Psihologie (Str. Paris)"
+  };
+  let curent = null;
+  const sel = document.getElementById('selector');
+  Object.keys(DEST).forEach((k, i) => {
+    const b = document.createElement('button');
+    b.id = 'btn-' + k; b.textContent = ETICHETE[k];
+    if (i === 0) b.classList.add('activ');
+    b.onclick = () => { if (k === curent) return; alege(k); };
+    sel.appendChild(b);
+  });
+  const map = L.map('map', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  let stratLinie = null, stratPini = [];
+  function pin(latlng, label) {
+    const icon = L.divIcon({ className: '', html: '<div class="pin-label">' + label + '</div>', iconAnchor: [-10, 34] });
+    const c = L.circleMarker(latlng, { radius: 7, color: '#111', weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(map);
+    const m = L.marker(latlng, { icon }).addTo(map); stratPini.push(c, m);
+  }
+  function curata() {
+    if (stratLinie) { map.removeLayer(stratLinie); stratLinie = null; }
+    stratPini.forEach(l => map.removeLayer(l)); stratPini = [];
+  }
+  function afiseazaRute(cheie) {
+    const d = DEST[cheie];
+    if (!d.rute) {
+      document.getElementById('rute').innerHTML =
+        '<h2>' + d.titlu + '</h2><div class="nota">Pentru această destinație nu am rute de transport în comun detaliate. ' +
+        'Timpul estimat cu transportul public apare mai sus, iar traseul pe hartă este cel mai scurt drum pe străzi.</div>';
+      return;
+    }
+    let html = '<div class="antet">' + ANTET + '</div><h2>' + d.titlu + '</h2>';
+    d.rute.forEach(r => {
+      html += '<div class="ruta"><span class="eticheta">' + r.et + ':</span><br>' +
+        '<span class="pasi">' + r.pasi.join(' <span class="sageata">→</span> ') + '</span><br>' +
+        '<span class="total">' + r.total + '</span></div>';
+    });
+    document.getElementById('rute').innerHTML = html;
+  }
+  const OSRM_GAZDA = { foot: 'routed-foot', bike: 'routed-bike', driving: 'routed-car' };
+  function osrm(profil, d) {
+    const url = 'https://routing.openstreetmap.de/' + OSRM_GAZDA[profil] + '/route/v1/' + profil + '/'
+      + START[1] + ',' + START[0] + ';' + d.coord[1] + ',' + d.coord[0]
+      + '?overview=' + (profil === 'foot' ? 'full' : 'false') + '&geometries=geojson';
+    return fetch(url).then(r => r.json());
+  }
+  function fmt(min) { return min == null ? 'n/a' : (min < 1 ? '<1 min' : min + ' min'); }
+  let cerereId = 0;
+  function alege(cheie) {
+    const d = DEST[cheie];
+    const idCerere = ++cerereId;
+    curent = cheie;
+    Object.keys(DEST).forEach(k => document.getElementById('btn-' + k).classList.toggle('activ', k === cheie));
+    afiseazaRute(cheie); curata();
+    pin(START, "Căminul Renașterii 2"); pin(d.coord, d.nume);
+    document.getElementById('distanta').textContent = 'Se calculează traseul pe străzi…';
+    document.getElementById('timpi').textContent = 'Se estimează timpii…';
+    osrm('foot', d).then(data => {
+      if (idCerere !== cerereId) return;
+      if (!data.routes || !data.routes.length) throw new Error();
+      const route = data.routes[0];
+      const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+      stratLinie = L.polyline(coords, { color: '#111', weight: 5, opacity: 0.9 }).addTo(map);
+      map.fitBounds(stratLinie.getBounds(), { padding: [60, 60] });
+      const km = (route.distance / 1000).toFixed(2);
+      const minJos = Math.round(route.duration / 60);
+      document.getElementById('distanta').innerHTML = '<b>Distanță pe jos:</b> ' + km + ' km';
+      Promise.all([osrm('driving', d), osrm('bike', d)]).then(([dr, bk]) => {
+        if (idCerere !== cerereId) return;
+        const minAuto = dr.routes && dr.routes.length ? Math.round(dr.routes[0].duration / 60) : null;
+        const minBici = bk.routes && bk.routes.length ? Math.round(bk.routes[0].duration / 60) : null;
+        const minTC = d.tcMin != null ? d.tcMin : Math.round(minJos * 0.55 + 5);
+        const tcNota = d.tcMin != null ? '' : ' (estimat)';
+        document.getElementById('timpi').innerHTML =
+          '<b>Timp:</b> ' +
+          '<span class="mod">cu mașina aprox. <b>' + fmt(minAuto) + '</b></span><span class="sep">·</span>' +
+          '<span class="mod">cu bicicleta aprox. <b>' + fmt(minBici) + '</b></span><span class="sep">·</span>' +
+          '<span class="mod">pe jos aprox. <b>' + minJos + ' min</b></span><span class="sep">·</span>' +
+          '<span class="mod">cu transport în comun aprox. <b>' + minTC + ' min</b>' + tcNota + '</span>';
+      });
+    }).catch(() => {
+      if (idCerere !== cerereId) return;
+      stratLinie = L.polyline([START, d.coord], { color: '#111', weight: 4, dashArray: '8 8' }).addTo(map);
+      map.fitBounds(stratLinie.getBounds(), { padding: [60, 60] });
+      document.getElementById('distanta').textContent = 'Serverul de rutare nu a răspuns — se afișează linia dreaptă. Reîncarcă pagina.';
+      document.getElementById('timpi').textContent = '';
+    });
+  }
+  alege('uvt');
+</script>
+</body>
+</html>
