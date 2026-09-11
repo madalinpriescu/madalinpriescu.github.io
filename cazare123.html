@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verificare & centralizare cazare — UVT 2026–2027</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#F4F6F5; --surface:#FFFFFF; --ink:#16333F; --inkSoft:#3D5760; --muted:#6A7B80;
+    --border:#D8E0E1; --accent:#2E7D8A; --accentDark:#1F5B66;
+    --okBg:#E6F4EC; --okFg:#1E7A46; --warnBg:#FBF0D8; --warnFg:#8A5A00; --errBg:#FCE9E7; --errFg:#B42318;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 64px;}
+  h1{font-size:24px;font-weight:800;margin:0;letter-spacing:-.01em;}
+  .num{font-variant-numeric:tabular-nums;}
+  .row{display:flex;}
+  .btn{border:1px solid var(--border);background:var(--surface);color:var(--ink);padding:8px 14px;border-radius:8px;
+    font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background .12s,border-color .12s;}
+  .btn:hover{background:#EEF3F3;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accentDark);}
+  .btn-danger{color:var(--errFg);border-color:#EEC9C4;background:#FFF7F6;}
+  .btn-danger:hover{background:var(--errBg);}
+  .tab{border:none;background:transparent;padding:10px 4px;margin-right:22px;font-size:15px;font-weight:600;
+    color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;}
+  .tab.active{color:var(--ink);border-bottom-color:var(--accent);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-weight:700;color:var(--inkSoft);padding:9px 10px;border-bottom:2px solid var(--border);
+    position:sticky;top:0;background:var(--surface);z-index:1;}
+  td{padding:8px 10px;border-bottom:1px solid #EDF1F1;vertical-align:top;}
+  tr:hover td{background:#F7FAFA;}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;}
+  .input{border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:14px;color:var(--ink);background:#fff;outline:none;}
+  .input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(46,125,138,.14);}
+  select.input{appearance:none;}
+  .scroll{overflow:auto;}
+  .matrix{font-size:12.5px;min-width:760px;}
+  .matrix th,.matrix td{text-align:center;padding:6px 8px;border:1px solid var(--border);position:static;}
+  .matrix th:first-child,.matrix td:first-child{text-align:left;font-weight:700;}
+  .kpi{padding:16px 18px;flex:1 1 0;min-width:150px;}
+  .kpi .lbl{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px;}
+  .kpi .val{font-size:28px;font-weight:800;line-height:1;}
+  .kpi .sub{font-size:12.5px;color:var(--muted);margin-top:5px;}
+  .mini{border:1px solid var(--border);border-radius:9px;padding:9px 14px;min-width:92px;}
+  .mini .lbl{font-size:12px;color:var(--muted);font-weight:600;}
+  .mini .val{font-size:20px;font-weight:800;}
+  .glyph{font-weight:900;}
+  .muted{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+    <div>
+      <div class="row" style="align-items:center;gap:10px;">
+        <span class="glyph" style="color:var(--accent);font-size:22px;">▦</span>
+        <h1>Verificare &amp; centralizare cazare</h1>
+      </div>
+      <p class="muted" style="margin:6px 0 0;font-size:14px;">
+        An universitar 2026–2027 · încarci macheta fiecărei facultăți, o verific, o adaug în centralizator.
+      </p>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="row" style="gap:12px;margin-top:20px;flex-wrap:wrap;">
+    <div class="card kpi"><div class="lbl">Facultăți încărcate</div><div class="val num" id="kpiFac">0/12</div></div>
+    <div class="card kpi"><div class="lbl">Studenți centralizați</div><div class="val num" id="kpiStud">0</div></div>
+    <div class="card kpi"><div class="lbl">Locuri academice ocupate</div><div class="val num" id="kpiAcad" style="color:var(--accent);">0</div><div class="sub num" id="kpiAcadSub"></div></div>
+    <div class="card kpi"><div class="lbl">Locuri sociale ocupate</div><div class="val num" id="kpiSoc" style="color:var(--accent);">0</div><div class="sub num" id="kpiSocSub"></div></div>
+    <div class="card kpi"><div class="lbl">Probleme detectate</div><div class="val num" id="kpiProb">0</div><div class="sub num" id="kpiProbSub"></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="row" style="margin-top:24px;border-bottom:1px solid var(--border);flex-wrap:wrap;" id="tabs">
+    <button class="tab active" data-tab="upload">⬆ Încărcare machetă</button>
+    <button class="tab" data-tab="centralizator">☰ Centralizator</button>
+    <button class="tab" data-tab="ocupare">▦ Ocupare locuri</button>
+    <button class="tab" data-tab="setari">⚙ Setări</button>
+  </div>
+
+  <div style="margin-top:22px;" id="content"></div>
+</div>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" />
+
+<script>
+/* ================= DATE DE REFERINȚĂ (din fișierul de locuri, totaluri verificate) ================= */
+const DORMS=["C12","C13","C15","C16","C17","DREPT","CAMELIA","BRD","Renașterii 2"];
+const FACULTIES=["FAD","FCBG","FD","FEFS","FEAA","FFM","FLIFT","FI","FMT","FSAS","FPSE","FSGC"];
+const ACADEMIC={
+  FAD:{C12:20,C15:27,C16:15,CAMELIA:6,BRD:44,"Renașterii 2":25},
+  FCBG:{C13:39,C15:5,C16:23,C17:7,BRD:50,"Renașterii 2":34},
+  FD:{C15:25,C16:26,DREPT:74,BRD:21,"Renașterii 2":50},
+  FEFS:{C13:26,C15:5,C16:24,C17:7,BRD:30,"Renașterii 2":35},
+  FEAA:{C12:179,C15:50,C16:120,BRD:87,"Renașterii 2":142},
+  FFM:{C13:17,C15:5,C16:14,BRD:16,"Renașterii 2":15},
+  FLIFT:{C12:51,C16:44,C17:14,CAMELIA:15,BRD:62,"Renașterii 2":53},
+  FI:{C13:56,C15:20,C16:36,C17:5,CAMELIA:5,BRD:36,"Renașterii 2":48},
+  FMT:{C13:8,C16:10,C17:2,CAMELIA:6,BRD:20,"Renașterii 2":11},
+  FSAS:{C13:16,C15:40,C16:11,CAMELIA:2,BRD:14,"Renașterii 2":32},
+  FPSE:{C13:47,C15:64,C16:30,C17:6,CAMELIA:5,BRD:31,"Renașterii 2":80},
+  FSGC:{C12:26,C13:47,C15:16,C16:28,C17:4,CAMELIA:14,BRD:43,"Renașterii 2":49},
+};
+const SOCIAL={
+  FAD:{C15:13,CAMELIA:6}, FCBG:{C17:24}, FD:{C15:4,DREPT:56}, FEFS:{C17:24},
+  FEAA:{C15:105}, FFM:{C15:23}, FLIFT:{C17:37,CAMELIA:15}, FI:{C17:35,CAMELIA:9},
+  FMT:{C15:5,C17:6,CAMELIA:7}, FSAS:{C15:22,C17:3,CAMELIA:6},
+  FPSE:{C15:30,C17:6,CAMELIA:9}, FSGC:{C15:6,C17:15,CAMELIA:17},
+};
+const sumObj=o=>Object.values(o).reduce((a,b)=>a+b,0);
+const TOTAL_ACADEMIC=Object.values(ACADEMIC).reduce((s,d)=>s+sumObj(d),0);
+const TOTAL_SOCIAL=Object.values(SOCIAL).reduce((s,d)=>s+sumObj(d),0);
+
+/* ================= HELPERE ================= */
+const norm=s=>(s==null?"":String(s)).normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toUpperCase();
+const DORM_LOOKUP=(()=>{const m={};DORMS.forEach(d=>m[norm(d)]=d);m["CAMELIEI"]="CAMELIA";return m;})();
+function canonicalDorm(raw,aliases){
+  if(raw==null||String(raw).trim()==="")return null;
+  const n=norm(raw);
+  if(DORM_LOOKUP[n])return DORM_LOOKUP[n];
+  if(aliases&&aliases[n])return aliases[n];
+  return null;
+}
+const isRomanian=tip=>norm(tip).startsWith("R");
+function normCriteriu(c){const n=norm(c);if(n.startsWith("SOC"))return"social";if(n.startsWith("ACAD"))return"academic";return null;}
+function findCol(header,keys){for(let i=0;i<header.length;i++){const h=norm(header[i]);if(keys.some(k=>h.includes(k)))return i;}return -1;}
+function parseMacheta(aoa){
+  let hi=-1;
+  for(let i=0;i<Math.min(aoa.length,15);i++){
+    const j=aoa[i].map(x=>norm(x)).join("|");
+    if(j.includes("NUME")&&(j.includes("CRITERIU")||j.includes("CAMIN"))){hi=i;break;}
+  }
+  if(hi===-1)throw new Error("Nu am găsit antetul machetei (rând cu «Nume» și «Criteriu»/«Cămin»).");
+  const H=aoa[hi];
+  const cNr=findCol(H,["CRT"]),cNume=findCol(H,["NUME"]),cEmail=findCol(H,["EMAIL","MAIL"]),
+        cCamin=findCol(H,["CAMIN"]),cTip=findCol(H,["TIP LOC","TIP"]),cCrit=findCol(H,["CRITERIU"]);
+  const miss=[];if(cNume===-1)miss.push("Nume&Prenume");if(cCamin===-1)miss.push("Cămin Atribuit");if(cCrit===-1)miss.push("Criteriu loc cazare");
+  if(miss.length)throw new Error("Lipsesc coloane obligatorii: "+miss.join(", "));
+  const rows=[];
+  for(let i=hi+1;i<aoa.length;i++){
+    const r=aoa[i];
+    const nume=cNume>-1?String(r[cNume]??"").trim():"";
+    if(!nume)continue;
+    rows.push({
+      nr:cNr>-1?String(r[cNr]??"").trim():"",
+      nume,
+      email:cEmail>-1?String(r[cEmail]??"").trim():"",
+      camin:cCamin>-1?String(r[cCamin]??"").trim():"",
+      tip:cTip>-1?String(r[cTip]??"").trim():"",
+      criteriu:cCrit>-1?String(r[cCrit]??"").trim():"",
+    });
+  }
+  return rows;
+}
+function validateRow(row,faculty,aliases){
+  const errors=[],warnings=[];
+  const crit=normCriteriu(row.criteriu);
+  if(!crit)warnings.push('Criteriu necompletat sau necunoscut ("'+(row.criteriu||"gol")+'")');
+  if(!row.email)warnings.push("Lipsește adresa de email");
+  if(!row.camin)warnings.push("Lipsește căminul atribuit");
+  const dorm=canonicalDorm(row.camin,aliases);
+  if(row.camin&&dorm===null)warnings.push('Cămin necunoscut: "'+row.camin+'" — mapează-l în Setări');
+  if(crit==="social"){
+    if(!isRomanian(row.tip))errors.push('Caz social: trebuie să fie student ROMÂN (tip loc: "'+(row.tip||"gol")+'")');
+    const allowed=SOCIAL[faculty]||{};const list=Object.keys(allowed);
+    if(dorm&&!allowed[dorm])errors.push("Caz social în "+dorm+": "+faculty+" are locuri sociale doar în "+(list.length?list.join(", "):"(niciun cămin)"));
+  }
+  return{errors,warnings};
+}
+function downloadWorkbook(wb,filename){
+  const out=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  const blob=new Blob([out],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ================= STARE + PERSISTENȚĂ ================= */
+const state={machete:{},aliases:{},tab:"upload",report:null,q:"",fFac:"",fStatus:"",showAll:false,uploadFaculty:"",uploadErr:"",resetArmed:false};
+
+async function loadState(){
+  try{
+    if(window.storage){
+      try{const m=await window.storage.get("cazare_machete");if(m&&m.value)state.machete=JSON.parse(m.value);}catch(e){}
+      try{const a=await window.storage.get("cazare_aliases");if(a&&a.value)state.aliases=JSON.parse(a.value);}catch(e){}
+      if(Object.keys(state.machete).length||Object.keys(state.aliases).length)return;
+    }
+  }catch(e){}
+  try{
+    const m=window.localStorage.getItem("cazare_machete");if(m)state.machete=JSON.parse(m);
+    const a=window.localStorage.getItem("cazare_aliases");if(a)state.aliases=JSON.parse(a);
+  }catch(e){}
+}
+function saveState(){
+  const m=JSON.stringify(state.machete),a=JSON.stringify(state.aliases);
+  try{if(window.storage){window.storage.set("cazare_machete",m).catch(()=>{});window.storage.set("cazare_aliases",a).catch(()=>{});}}catch(e){}
+  try{window.localStorage.setItem("cazare_machete",m);window.localStorage.setItem("cazare_aliases",a);}catch(e){}
+}
+
+/* ================= DERIVATE ================= */
+function computeAllRows(){
+  const out=[];
+  Object.values(state.machete).forEach(m=>{
+    m.rows.forEach(r=>{
+      const v=validateRow(r,m.faculty,state.aliases);
+      out.push(Object.assign({},r,{faculty:m.faculty,errors:v.errors,warnings:v.warnings,status:v.errors.length?"err":v.warnings.length?"warn":"ok"}));
+    });
+  });
+  return out;
+}
+function computeOcc(){
+  const acc={academic:{},social:{},unknown:{}};
+  Object.values(state.machete).forEach(m=>{
+    m.rows.forEach(r=>{
+      const crit=normCriteriu(r.criteriu);
+      if(crit!=="academic"&&crit!=="social")return;
+      const dorm=canonicalDorm(r.camin,state.aliases),fac=m.faculty;
+      if(!dorm){const key=r.camin||"(gol)";acc.unknown[key]=(acc.unknown[key]||0)+1;return;}
+      acc[crit][fac]=acc[crit][fac]||{};acc[crit][fac][dorm]=(acc[crit][fac][dorm]||0)+1;
+    });
+  });
+  return acc;
+}
+
+/* ================= DOM HELPERS ================= */
+function el(tag,opts,...kids){
+  opts=opts||{};const e=document.createElement(tag);
+  if(opts.class)e.className=opts.class;
+  if(opts.style)e.setAttribute("style",opts.style);
+  if(opts.text!=null)e.textContent=opts.text;
+  if(opts.html!=null)e.innerHTML=opts.html;
+  if(opts.attrs)for(const k in opts.attrs)e.setAttribute(k,opts.attrs[k]);
+  if(opts.on)for(const k in opts.on)e.addEventListener(k,opts.on[k]);
+  kids.forEach(c=>{if(c==null)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});
+  return e;
+}
+function badge(kind,text){
+  const map={ok:["var(--okBg)","var(--okFg)"],warn:["var(--warnBg)","var(--warnFg)"],err:["var(--errBg)","var(--errFg)"],neutral:["#EEF3F3","var(--inkSoft)"]};
+  const c=map[kind]||map.neutral;
+  return el("span",{class:"badge",style:"background:"+c[0]+";color:"+c[1]+";margin:2px 0;",text});
+}
+function statusGlyph(st){
+  const m={ok:["✓","var(--okFg)"],warn:["⚠","var(--warnFg)"],err:["✕","var(--errFg)"]}[st];
+  return el("span",{class:"glyph",style:"color:"+m[1]+";font-size:15px;",text:m[0]});
+}
+
+/* ================= RENDER ================= */
+function renderKpis(){
+  const rows=computeAllRows(),occ=computeOcc();
+  const occTot=k=>Object.values(occ[k]).reduce((s,d)=>s+sumObj(d),0);
+  const prob=rows.filter(r=>r.status==="err").length,warn=rows.filter(r=>r.status==="warn").length;
+  document.getElementById("kpiFac").textContent=Object.keys(state.machete).length+"/12";
+  document.getElementById("kpiStud").textContent=rows.length;
+  document.getElementById("kpiAcad").textContent=occTot("academic");
+  document.getElementById("kpiAcadSub").textContent="din "+TOTAL_ACADEMIC+" alocate";
+  document.getElementById("kpiSoc").textContent=occTot("social");
+  document.getElementById("kpiSocSub").textContent="din "+TOTAL_SOCIAL+" alocate";
+  const kp=document.getElementById("kpiProb");kp.textContent=prob;kp.style.color=prob?"var(--errFg)":"var(--okFg)";
+  document.getElementById("kpiProbSub").textContent=(warn?warn+" avertismente":"0 avertismente");
+}
+function setActiveTab(){document.querySelectorAll("#tabs .tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===state.tab));}
+function renderTab(){
+  const c=document.getElementById("content");c.innerHTML="";
+  if(state.tab==="upload")c.appendChild(renderUpload());
+  else if(state.tab==="centralizator")c.appendChild(renderCentral());
+  else if(state.tab==="ocupare")c.appendChild(renderOcupare());
+  else if(state.tab==="setari")c.appendChild(renderSetari());
+}
+function renderAll(){renderKpis();setActiveTab();renderTab();}
+
+/* ---------- UPLOAD ---------- */
+function renderUpload(){
+  const box=el("div");
+  const card=el("div",{class:"card",style:"padding:20px;"});
+  const rowd=el("div",{class:"row",style:"gap:16px;flex-wrap:wrap;align-items:flex-end;"});
+  // faculty select
+  const selWrap=el("div");
+  selWrap.appendChild(el("label",{style:"display:block;font-size:13px;font-weight:700;color:var(--inkSoft);margin-bottom:6px;",text:"Facultate"}));
+  const sel=el("select",{class:"input",style:"min-width:200px;",on:{change:e=>{state.uploadFaculty=e.target.value;refreshUploadBtn();}}});
+  sel.appendChild(el("option",{attrs:{value:""},text:"— alege facultatea —"}));
+  FACULTIES.forEach(f=>{
+    const label=f+(state.machete[f]?"  ✓ (încărcată)":"");
+    const o=el("option",{attrs:{value:f},text:label});
+    if(state.uploadFaculty===f)o.selected=true;
+    sel.appendChild(o);
+  });
+  selWrap.appendChild(sel);
+  rowd.appendChild(selWrap);
+  // upload button
+  const btn=el("button",{class:"btn btn-primary",id:"btnPick",text:"⬆ Alege macheta (.xlsx)"});
+  btn.disabled=!state.uploadFaculty;
+  btn.addEventListener("click",()=>document.getElementById("fileInput").click());
+  const btnWrap=el("div");btnWrap.appendChild(btn);btnWrap.id="btnPickWrap";
+  rowd.appendChild(btnWrap);
+  // warning if already
+  if(state.uploadFaculty&&state.machete[state.uploadFaculty]){
+    rowd.appendChild(el("div",{style:"font-size:13px;color:var(--warnFg);display:inline-flex;align-items:center;gap:6px;"},
+      el("span",{class:"glyph",text:"⚠"}),state.uploadFaculty+" are deja o machetă — reîncărcarea o va înlocui."));
+  }
+  card.appendChild(rowd);
+  if(state.uploadErr){
+    card.appendChild(el("div",{style:"margin-top:14px;padding:10px 12px;background:var(--errBg);color:var(--errFg);border-radius:8px;font-size:13.5px;font-weight:600;"},
+      el("span",{class:"glyph",style:"margin-right:6px;",text:"✕"}),state.uploadErr));
+  }
+  box.appendChild(card);
+  box.appendChild(state.report?renderReport():renderUploadedList());
+  return box;
+}
+function refreshUploadBtn(){
+  const b=document.getElementById("btnPick");if(b)b.disabled=!state.uploadFaculty;
+  // re-render the "already uploaded" hint + list header select label: simplest full re-render of upload tab
+  renderTab();
+}
+function renderUploadedList(){
+  const list=Object.values(state.machete);
+  if(!list.length){
+    return el("div",{class:"card",style:"padding:32px;margin-top:18px;text-align:center;color:var(--muted);"},
+      el("div",{style:"font-size:20px;opacity:.6;",text:"ⓘ"}),
+      el("div",{style:"margin-top:8px;font-size:14.5px;",text:"Nicio machetă încărcată încă. Alege o facultate și încarcă fișierul ei."}));
+  }
+  const card=el("div",{class:"card",style:"padding:20px;margin-top:18px;"});
+  card.appendChild(el("div",{style:"font-size:14px;font-weight:700;color:var(--inkSoft);margin-bottom:10px;",text:"Machete încărcate"}));
+  const t=el("table");
+  t.appendChild(el("thead",{},el("tr",{},el("th",{text:"Facultate"}),el("th",{text:"Fișier"}),el("th",{text:"Studenți"}),el("th",{text:"Încărcat"}))));
+  const tb=el("tbody");
+  list.forEach(m=>{
+    tb.appendChild(el("tr",{},
+      el("td",{style:"font-weight:700;",text:m.faculty}),
+      el("td",{class:"muted",text:m.filename}),
+      el("td",{class:"num",text:String(m.rows.length)}),
+      el("td",{class:"muted",text:new Date(m.uploadedAt).toLocaleString("ro-RO")})));
+  });
+  t.appendChild(tb);card.appendChild(t);
+  return card;
+}
+async function onFile(e){
+  state.uploadErr="";
+  const file=e.target.files&&e.target.files[0];
+  if(!file)return;
+  if(!state.uploadFaculty){state.uploadErr="Alege întâi facultatea, apoi încarcă macheta.";e.target.value="";renderTab();return;}
+  if(typeof XLSX==="undefined"){state.uploadErr="Biblioteca de citire Excel nu s-a încărcat (verifică conexiunea la internet).";e.target.value="";renderTab();return;}
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:"array"});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:""});
+    const rows=parseMacheta(aoa);
+    if(!rows.length)throw new Error("Macheta nu conține niciun student.");
+    const validated=rows.map(r=>Object.assign({},r,validateRow(r,state.uploadFaculty,state.aliases)));
+    const nErr=validated.filter(r=>r.errors.length).length;
+    const nWarn=validated.filter(r=>!r.errors.length&&r.warnings.length).length;
+    const social=rows.filter(r=>normCriteriu(r.criteriu)==="social").length;
+    const academic=rows.filter(r=>normCriteriu(r.criteriu)==="academic").length;
+    state.report={faculty:state.uploadFaculty,filename:file.name,rows:validated,summary:{total:rows.length,academic,social,nErr,nWarn}};
+  }catch(ex){state.uploadErr=ex.message||"Nu am putut citi fișierul.";state.report=null;}
+  e.target.value="";
+  renderTab();
+}
+function renderReport(){
+  const rep=state.report,s=rep.summary,clean=s.nErr===0;
+  const problematic=rep.rows.filter(r=>r.errors.length||r.warnings.length);
+  const card=el("div",{class:"card",style:"padding:20px;margin-top:18px;"});
+  const head=el("div",{class:"row",style:"justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;"});
+  head.appendChild(el("div",{},
+    el("div",{style:"font-size:17px;font-weight:800;",text:"Verificare machetă · "+rep.faculty}),
+    el("div",{class:"muted",style:"font-size:13px;margin-top:3px;",text:rep.filename})));
+  const acts=el("div",{class:"row",style:"gap:10px;"});
+  acts.appendChild(el("button",{class:"btn",text:"Renunță",on:{click:()=>{state.report=null;renderTab();}}}));
+  acts.appendChild(el("button",{class:"btn btn-primary",text:"✓ Adaugă în centralizator",on:{click:commitReport}}));
+  head.appendChild(acts);card.appendChild(head);
+  // banner
+  card.appendChild(el("div",{style:"margin-top:16px;padding:12px 14px;border-radius:9px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:9px;background:"+(clean?"var(--okBg)":"var(--errBg)")+";color:"+(clean?"var(--okFg)":"var(--errFg)")+";"},
+    el("span",{class:"glyph",style:"font-size:18px;",text:clean?"✓":"✕"}),
+    clean?("Totul e în regulă: "+s.total+" studenți, fără erori."):("Atenție: "+s.nErr+" "+(s.nErr===1?"problemă":"probleme")+" de rezolvat în această machetă.")));
+  // mini stats
+  const ms=el("div",{class:"row",style:"gap:12px;margin-top:14px;flex-wrap:wrap;"});
+  const mk=(l,v,tone)=>{const col=tone==="err"?"var(--errFg)":tone==="warn"?"var(--warnFg)":tone==="ok"?"var(--okFg)":"var(--ink)";
+    return el("div",{class:"mini"},el("div",{class:"lbl",text:l}),el("div",{class:"val num",style:"color:"+col+";",text:String(v)}));};
+  ms.appendChild(mk("Total",s.total));ms.appendChild(mk("Academic",s.academic));ms.appendChild(mk("Social",s.social));
+  ms.appendChild(mk("Erori",s.nErr,s.nErr?"err":"ok"));ms.appendChild(mk("Avertismente",s.nWarn,s.nWarn?"warn":"ok"));
+  card.appendChild(ms);
+  // problematic table
+  if(problematic.length){
+    card.appendChild(el("div",{style:"font-size:13.5px;font-weight:700;color:var(--inkSoft);margin:18px 0 8px;",text:"Rânduri de verificat ("+problematic.length+")"}));
+    const wrap=el("div",{class:"scroll",style:"max-height:380px;border:1px solid var(--border);border-radius:9px;"});
+    const t=el("table");
+    t.appendChild(el("thead",{},el("tr",{},el("th",{text:"Nume"}),el("th",{text:"Cămin"}),el("th",{text:"Tip"}),el("th",{text:"Criteriu"}),el("th",{text:"Ce e în neregulă"}))));
+    const tb=el("tbody");
+    problematic.forEach(r=>{
+      const issues=el("td");const box=el("div",{style:"display:flex;flex-direction:column;gap:3px;"});
+      r.errors.forEach(x=>box.appendChild(badge("err",x)));r.warnings.forEach(x=>box.appendChild(badge("warn",x)));issues.appendChild(box);
+      tb.appendChild(el("tr",{},
+        el("td",{style:"font-weight:600;",text:r.nume}),el("td",{text:r.camin}),
+        el("td",{class:"num",text:r.tip}),el("td",{text:r.criteriu}),issues));
+    });
+    t.appendChild(tb);wrap.appendChild(t);card.appendChild(wrap);
+  }else{
+    card.appendChild(el("div",{class:"muted",style:"margin-top:16px;font-size:13.5px;",text:"Niciun rând problematic."}));
+  }
+  return card;
+}
+function commitReport(){
+  const rep=state.report;if(!rep)return;
+  state.machete[rep.faculty]={faculty:rep.faculty,filename:rep.filename,uploadedAt:new Date().toISOString(),
+    rows:rep.rows.map(r=>({nr:r.nr,nume:r.nume,email:r.email,camin:r.camin,tip:r.tip,criteriu:r.criteriu}))};
+  state.report=null;state.uploadFaculty="";saveState();renderAll();
+}
+
+/* ---------- CENTRALIZATOR ---------- */
+function filteredRows(){
+  const rows=computeAllRows(),qq=norm(state.q);
+  return rows.filter(r=>{
+    if(state.fFac&&r.faculty!==state.fFac)return false;
+    if(state.fStatus&&r.status!==state.fStatus)return false;
+    if(qq){const hay=norm(r.nume+" "+r.email+" "+r.camin+" "+r.tip+" "+r.criteriu+" "+r.faculty);if(!hay.includes(qq))return false;}
+    return true;
+  });
+}
+function renderCentral(){
+  const rows=computeAllRows();
+  const box=el("div");
+  const bar=el("div",{class:"card",style:"padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;"});
+  const left=el("div",{class:"row",style:"gap:10px;flex-wrap:wrap;align-items:center;"});
+  const searchWrap=el("div",{style:"position:relative;"});
+  searchWrap.appendChild(el("span",{class:"glyph",style:"position:absolute;left:10px;top:8px;color:var(--muted);",text:"⌕"}));
+  const search=el("input",{class:"input",style:"padding-left:30px;width:220px;",attrs:{placeholder:"Caută nume, email, cămin…"}});
+  search.value=state.q;
+  search.addEventListener("input",e=>{state.q=e.target.value;updateCentralResults();});
+  searchWrap.appendChild(search);left.appendChild(searchWrap);
+  const selFac=el("select",{class:"input"});
+  selFac.appendChild(el("option",{attrs:{value:""},text:"Toate facultățile"}));
+  FACULTIES.filter(f=>state.machete[f]).forEach(f=>{const o=el("option",{attrs:{value:f},text:f});if(state.fFac===f)o.selected=true;selFac.appendChild(o);});
+  selFac.addEventListener("change",e=>{state.fFac=e.target.value;updateCentralResults();});left.appendChild(selFac);
+  const selSt=el("select",{class:"input"});
+  [["","Toate stările"],["ok","Doar OK"],["warn","Doar avertismente"],["err","Doar erori"]].forEach(([v,l])=>{const o=el("option",{attrs:{value:v},text:l});if(state.fStatus===v)o.selected=true;selSt.appendChild(o);});
+  selSt.addEventListener("change",e=>{state.fStatus=e.target.value;updateCentralResults();});left.appendChild(selSt);
+  bar.appendChild(left);
+  const exp=el("button",{class:"btn btn-primary",text:"⬇ Export combinat (.xlsx)",on:{click:exportAll}});
+  exp.disabled=!rows.length;bar.appendChild(exp);
+  box.appendChild(bar);
+  box.appendChild(el("div",{id:"centralCount",style:"margin:10px 2px;font-size:13px;color:var(--muted);"}));
+  box.appendChild(el("div",{id:"centralWrap"}));
+  // defer fill until in DOM
+  setTimeout(updateCentralResults,0);
+  return box;
+}
+function updateCentralResults(){
+  const rows=computeAllRows(),filtered=filteredRows();
+  const cnt=document.getElementById("centralCount");
+  const wrap=document.getElementById("centralWrap");
+  if(!cnt||!wrap)return;
+  cnt.textContent=filtered.length+" rezultate"+(filtered.length!==rows.length?(" (din "+rows.length+")"):"");
+  wrap.innerHTML="";
+  if(!rows.length){
+    wrap.appendChild(el("div",{class:"card",style:"padding:32px;text-align:center;color:var(--muted);",text:"Încă nu e nimic centralizat. Adaugă cel puțin o machetă din tabul „Încărcare"+String.fromCharCode(8221)+"."}));
+    return;
+  }
+  const shown=state.showAll?filtered:filtered.slice(0,500);
+  const card=el("div",{class:"card scroll",style:"max-height:560px;"});
+  const t=el("table");
+  t.appendChild(el("thead",{},el("tr",{},el("th",{style:"width:34px;"}),el("th",{text:"Fac."}),el("th",{text:"Nume & Prenume"}),el("th",{text:"Email"}),el("th",{text:"Cămin"}),el("th",{text:"Tip"}),el("th",{text:"Criteriu"}),el("th",{text:"Probleme"}))));
+  const tb=el("tbody");
+  shown.forEach(r=>{
+    const issues=el("td");const bx=el("div",{style:"display:flex;flex-direction:column;gap:3px;"});
+    r.errors.forEach(x=>bx.appendChild(badge("err",x)));r.warnings.forEach(x=>bx.appendChild(badge("warn",x)));issues.appendChild(bx);
+    tb.appendChild(el("tr",{},
+      el("td",{},statusGlyph(r.status)),
+      el("td",{style:"font-weight:700;",text:r.faculty}),
+      el("td",{style:"font-weight:600;",text:r.nume}),
+      el("td",{class:"muted",text:r.email}),
+      el("td",{text:r.camin}),el("td",{class:"num",text:r.tip}),el("td",{text:r.criteriu}),issues));
+  });
+  t.appendChild(tb);card.appendChild(t);
+  if(!state.showAll&&filtered.length>500){
+    card.appendChild(el("div",{style:"padding:14px;text-align:center;"},
+      el("button",{class:"btn",text:"Afișează toate cele "+filtered.length,on:{click:()=>{state.showAll=true;updateCentralResults();}}})));
+  }
+  wrap.appendChild(card);
+}
+function exportAll(){
+  const rows=computeAllRows();
+  const wb=XLSX.utils.book_new();
+  const head=["Facultate","Nr.","Nume & Prenume","Adresă email","Cămin Atribuit","Tip loc curent","Criteriu","Status","Probleme"];
+  const data=rows.map((r,i)=>[r.faculty,i+1,r.nume,r.email,r.camin,r.tip,r.criteriu,
+    r.status==="err"?"EROARE":r.status==="warn"?"Avertisment":"OK",r.errors.concat(r.warnings).join(" | ")]);
+  const ws1=XLSX.utils.aoa_to_sheet([head].concat(data));
+  ws1["!cols"]=[{wch:9},{wch:5},{wch:34},{wch:30},{wch:14},{wch:12},{wch:10},{wch:12},{wch:60}];
+  XLSX.utils.book_append_sheet(wb,ws1,"Centralizator");
+  const buildMatrix=(kind,alloc)=>{
+    const out=[["Facultate"].concat(DORMS).concat(["Total ocupat","Total alocat"])];
+    FACULTIES.forEach(f=>{
+      const line=[f];let occSum=0,allocSum=0;
+      DORMS.forEach(d=>{
+        const a=(alloc[f]&&alloc[f][d])||0;
+        const o=rows.filter(r=>r.faculty===f&&normCriteriu(r.criteriu)===kind&&canonicalDorm(r.camin,state.aliases)===d).length;
+        occSum+=o;allocSum+=a;line.push(a||o?(o+"/"+a):"");
+      });
+      line.push(occSum);line.push(allocSum);out.push(line);
+    });
+    return XLSX.utils.aoa_to_sheet(out);
+  };
+  XLSX.utils.book_append_sheet(wb,buildMatrix("academic",ACADEMIC),"Ocupare academic");
+  XLSX.utils.book_append_sheet(wb,buildMatrix("social",SOCIAL),"Ocupare social");
+  downloadWorkbook(wb,"Centralizator_cazare_2026-2027.xlsx");
+}
+
+/* ---------- OCUPARE ---------- */
+function renderMatrix(title,alloc,occKind){
+  const card=el("div",{class:"card",style:"padding:18px;margin-bottom:20px;"});
+  card.appendChild(el("div",{style:"font-size:15px;font-weight:800;margin-bottom:12px;",text:title}));
+  const wrap=el("div",{class:"scroll"});
+  const t=el("table",{class:"matrix num"});
+  const facRows=FACULTIES.filter(f=>alloc[f]||occKind[f]);
+  const thr=el("tr",{},el("th",{text:"Facultate"}));
+  DORMS.forEach(d=>thr.appendChild(el("th",{text:d})));
+  thr.appendChild(el("th",{text:"Ocupat"}));thr.appendChild(el("th",{text:"Alocat"}));thr.appendChild(el("th",{text:"Liber"}));
+  t.appendChild(el("thead",{},thr));
+  const tb=el("tbody");
+  facRows.forEach(f=>{
+    const a=alloc[f]||{},o=occKind[f]||{};let occSum=0,allocSum=0;
+    const tr=el("tr",{},el("td",{text:f}));
+    DORMS.forEach(d=>{
+      const av=a[d]||0,ov=o[d]||0;occSum+=ov;allocSum+=av;
+      if(av===0&&ov===0){tr.appendChild(el("td",{style:"color:#C6D0D1;",text:"–"}));return;}
+      let bg="transparent",fg="var(--ink)";
+      if(ov>av){bg="var(--errBg)";fg="var(--errFg)";}
+      else if(av>0&&ov===av){bg="var(--okBg)";fg="var(--okFg)";}
+      else if(av===0&&ov>0){bg="var(--warnBg)";fg="var(--warnFg)";}
+      tr.appendChild(el("td",{style:"background:"+bg+";color:"+fg+";font-weight:600;",text:ov+"/"+av}));
+    });
+    const free=allocSum-occSum;
+    tr.appendChild(el("td",{style:"font-weight:700;",text:String(occSum)}));
+    tr.appendChild(el("td",{text:String(allocSum)}));
+    tr.appendChild(el("td",{style:"font-weight:700;color:"+(free<0?"var(--errFg)":"var(--inkSoft)")+";",text:String(free)}));
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);wrap.appendChild(t);card.appendChild(wrap);
+  const leg=el("div",{class:"row",style:"gap:16px;margin-top:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);"});
+  leg.appendChild(el("span",{html:'<span style="background:var(--okBg);color:var(--okFg);padding:1px 7px;border-radius:5px;font-weight:700;">plin</span> ocupat = alocat'}));
+  leg.appendChild(el("span",{html:'<span style="background:var(--errBg);color:var(--errFg);padding:1px 7px;border-radius:5px;font-weight:700;">depășit</span> ocupat &gt; alocat'}));
+  leg.appendChild(el("span",{html:'<span style="background:var(--warnBg);color:var(--warnFg);padding:1px 7px;border-radius:5px;font-weight:700;">neprevăzut</span> ocupat unde nu-s locuri'}));
+  card.appendChild(leg);
+  return card;
+}
+function renderOcupare(){
+  const occ=computeOcc(),box=el("div");
+  box.appendChild(renderMatrix("Ocupare pe criterii ACADEMICE (ocupat / alocat)",ACADEMIC,occ.academic));
+  box.appendChild(renderMatrix("Ocupare pe criterii SOCIALE — PNRR (ocupat / alocat)",SOCIAL,occ.social));
+  const unk=Object.entries(occ.unknown);
+  if(unk.length){
+    const c=el("div",{class:"card",style:"padding:16px;border-color:#EEDBB0;background:#FFFBF2;"});
+    c.appendChild(el("div",{style:"font-weight:700;color:var(--warnFg);display:flex;align-items:center;gap:8px;"},
+      el("span",{class:"glyph",text:"⚠"}),"Studenți în cămine neînregistrate (necontorizați mai sus)"));
+    c.appendChild(el("div",{style:"margin-top:8px;font-size:13.5px;color:var(--inkSoft);",text:unk.map(([k,v])=>k+": "+v).join(" · ")}));
+    c.appendChild(el("div",{class:"muted",style:"margin-top:6px;font-size:12.5px;",text:"Mapează aceste cămine în tabul Setări ca să fie incluse în calcul."}));
+    box.appendChild(c);
+  }
+  return box;
+}
+
+/* ---------- SETARI ---------- */
+function unknownDormsList(){
+  const map=new Map();
+  Object.values(state.machete).forEach(m=>m.rows.forEach(r=>{
+    if(r.camin&&canonicalDorm(r.camin,state.aliases)===null)map.set(norm(r.camin),r.camin);
+  }));
+  return Array.from(map.entries());
+}
+function renderSetari(){
+  const box=el("div",{style:"display:flex;flex-direction:column;gap:20px;"});
+  // aliasuri
+  const c1=el("div",{class:"card",style:"padding:20px;"});
+  c1.appendChild(el("div",{style:"font-size:15px;font-weight:800;",text:"Mapare cămine"}));
+  c1.appendChild(el("p",{class:"muted",style:"font-size:13.5px;margin-top:4px;",text:'Când în machetă apare un cămin scris altfel decât în fișierul de locuri, mapează-l aici la căminul corect. („Cameliei" → „CAMELIA" e deja mapat automat.)'}));
+  const unk=unknownDormsList();
+  if(!unk.length){
+    c1.appendChild(el("div",{style:"font-size:13.5px;color:var(--okFg);display:flex;align-items:center;gap:7px;margin-top:8px;"},
+      el("span",{class:"glyph",text:"✓"}),"Toate căminele din machetele încărcate sunt recunoscute."));
+  }else{
+    const t=el("table",{style:"margin-top:8px;"});
+    t.appendChild(el("thead",{},el("tr",{},el("th",{text:"Cămin din machetă"}),el("th",{text:"Mapează la"}))));
+    const tb=el("tbody");
+    unk.forEach(([key,raw])=>{
+      const sel=el("select",{class:"input"});
+      sel.appendChild(el("option",{attrs:{value:""},text:"— nemapat —"}));
+      DORMS.forEach(d=>{const o=el("option",{attrs:{value:d},text:d});if(state.aliases[key]===d)o.selected=true;sel.appendChild(o);});
+      sel.addEventListener("change",e=>{if(e.target.value)state.aliases[key]=e.target.value;else delete state.aliases[key];saveState();renderAll();});
+      tb.appendChild(el("tr",{},el("td",{style:"font-weight:600;",text:raw}),el("td",{},sel)));
+    });
+    t.appendChild(tb);c1.appendChild(t);
+  }
+  box.appendChild(c1);
+  // reguli
+  const c2=el("div",{class:"card",style:"padding:20px;"});
+  c2.appendChild(el("div",{style:"font-size:15px;font-weight:800;",text:"Regula pentru cazurile sociale"}));
+  const ul=el("ul",{style:"font-size:13.5px;color:var(--inkSoft);margin-top:8px;padding-left:20px;line-height:1.6;"});
+  ul.appendChild(el("li",{html:"<b>Naționalitate:</b> un caz social e considerat român dacă „Tip loc curent"+String.fromCharCode(8221)+" începe cu <b>R</b> (RB, RT, RPCB, RPFB, RBRU, RBDIZ, RPT). Altfel → eroare."}));
+  ul.appendChild(el("li",{html:"<b>Cămin:</b> un caz social trebuie să fie într-un cămin unde facultatea are locuri sociale alocate. Altfel → eroare."}));
+  c2.appendChild(ul);
+  c2.appendChild(el("div",{class:"muted",style:"font-size:12.5px;margin-top:6px;",text:"Vrei altă regulă de naționalitate? Se poate ajusta ușor."}));
+  box.appendChild(c2);
+  // machete
+  const c3=el("div",{class:"card",style:"padding:20px;"});
+  const hd=el("div",{class:"row",style:"justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;"});
+  hd.appendChild(el("div",{style:"font-size:15px;font-weight:800;",text:"Machete stocate"}));
+  const resetBtn=el("button",{class:"btn btn-danger",text:state.resetArmed?"Sigur? Apasă din nou":"🗑 Șterge tot"});
+  resetBtn.disabled=!Object.keys(state.machete).length;
+  resetBtn.addEventListener("click",()=>{
+    if(state.resetArmed){state.machete={};state.resetArmed=false;saveState();renderAll();}
+    else{state.resetArmed=true;renderTab();setTimeout(()=>{state.resetArmed=false;if(state.tab==="setari")renderTab();},3000);}
+  });
+  hd.appendChild(resetBtn);c3.appendChild(hd);
+  const list=Object.values(state.machete);
+  if(!list.length){
+    c3.appendChild(el("div",{class:"muted",style:"font-size:13.5px;margin-top:8px;",text:"Nicio machetă stocată."}));
+  }else{
+    const t=el("table",{style:"margin-top:10px;"});
+    t.appendChild(el("thead",{},el("tr",{},el("th",{text:"Facultate"}),el("th",{text:"Fișier"}),el("th",{text:"Studenți"}),el("th",{}))));
+    const tb=el("tbody");
+    list.forEach(m=>{
+      const del=el("button",{class:"btn btn-danger",text:"🗑 Șterge",on:{click:()=>{delete state.machete[m.faculty];saveState();renderAll();}}});
+      tb.appendChild(el("tr",{},
+        el("td",{style:"font-weight:700;",text:m.faculty}),
+        el("td",{class:"muted",text:m.filename}),
+        el("td",{class:"num",text:String(m.rows.length)}),
+        el("td",{style:"text-align:right;"},del)));
+    });
+    t.appendChild(tb);c3.appendChild(t);
+  }
+  box.appendChild(c3);
+  return box;
+}
+
+/* ================= INIT ================= */
+document.getElementById("fileInput").addEventListener("change",onFile);
+document.getElementById("tabs").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-tab]");if(!b)return;
+  state.tab=b.dataset.tab;state.showAll=false;setActiveTab();renderTab();
+});
+(async function(){await loadState();renderAll();})();
+</script>
+</body>
+</html>
